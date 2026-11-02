@@ -5,7 +5,7 @@
 
 You are the Fool, with a little white dog at your side, setting off from a cliff's edge to walk the whole of the Major Arcana. Each level belongs to one Major card. Every task, puzzle and conversation is built around what that card means, so by the end of the journey you've learned the deck by living it.
 
-**▶ [Play the game](https://YOUR-USERNAME.github.io/fools-journey/)**
+**▶ [Play the game](https://hmorfeld.github.io/fools-journey/)**
 
 ---
 
