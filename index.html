@@ -468,7 +468,7 @@ const LV = [
       "hh.hh,hh.hh",
       "h....,....h",
       "h...~~~...h",
-      "h.,.~~~.,.h",
+      "h.,.===.,.h",
       "h...~~~...h",
       "h.e.....p.h",
       "hh.hh,hh.hh",
@@ -484,8 +484,8 @@ const LV = [
     npcs:()=>[
       S.flags.curtainOpen ? {id:'priestess', x:3, y:1, kind:'priestess', flip:1} : {id:'priestess', x:5, y:1, kind:'priestess', flip:1},
       {id:'watcher', x:9, y:2, kind:'watcher', flip:-1},
-      {id:'ilse', x:3, y:7, kind:'ilse', flip:1},
-      {id:'oren', x:7, y:7, kind:'oren', flip:-1},
+      has('c2') ? {id:'ilse', x:4, y:7, kind:'meet2:ilse', flip:1} : {id:'ilse', x:3, y:7, kind:'ilse', flip:1},
+      has('c2') ? {id:'oren', x:6, y:7, kind:'meet2:oren', flip:-1} : {id:'oren', x:7, y:7, kind:'oren', flip:-1},
       {id:'seraphine', x:2, y:9, kind:'seraphine', flip:1},
       {id:'tobin', x:3, y:12, kind:'tobin', flip:-1}
     ],
@@ -5114,17 +5114,20 @@ const SC = {
     if (has('c2')){ await say('Ilse', "We're talking again. It turns out we both wanted the same thing."); return; }
     S.flags.ilse = true;
     await say('Ilse', "Oren and I haven't spoken since the festival. He said something careless. I said something worse.");
-    await say('Ilse', "I miss him. But I'm scared that if I speak first, he'll turn away. (She glances across the pond.)");
+    await say('Ilse', "I miss him. But I'm scared that if I step onto the bridge first, he'll turn away. (She glances across it.)");
   },
   async oren(){
-    if (has('c2')){ await say('Oren', 'Funny how a pond can look so wide until you walk around it.'); return; }
-    if (!S.flags.ilse){ await say('Oren', '(He stares across the pond and says nothing. On the far side, a woman stares back.)'); return; }
+    if (has('c2')){ await say('Oren', 'Funny. That bridge was always short. It only looked long.'); return; }
+    if (!S.flags.ilse){ await say('Oren', '(He stands at his end of the little bridge and says nothing. At the other end, a woman stares back.)'); return; }
     const a = await ask('Oren', '(He looks up as you approach.) Did she say something about me?',
       ['She says you should be the one to apologize.', "She misses you, and she's scared to speak first.", 'Forget her. There are other people.']);
     if (a === 1){
       await say('Oren', '(He lets out a long breath.) I was scared too.');
-      await Promise.all([fxPlay('hearts', 3, 7, 1800), fxPlay('hearts', 7, 7, 1800), fxPlay('ripple', 5, 7, 1800)]);
-      await say('', 'Ilse and Oren meet halfway around the pond and raise a cup to each other.');
+      S.cards.push('c2');
+      await fxPlay('meet2', 5, 7, 2600);
+      await Promise.all([fxPlay('hearts', 5, 7, 1800), fxPlay('ripple', 5, 7, 1800)]);
+      await say('', 'Ilse and Oren step onto the bridge and meet in the middle. They raise two cups to each other.');
+      S.cards = S.cards.filter(c => c !== 'c2');
       await reveal('c2');
     } else {
       await say('Oren', '(He turns back to the water.) Then there\'s nothing more to say.');
@@ -5437,7 +5440,7 @@ function journal(){
     if (twos() === 4 && !has('2')) add("Answer the High Priestess's three riddles");
     if (f.curtainOpen) add('Step through the velvet curtain');
     if (!has('w2') && S.q.watcher) add('Help the Watcher choose a road');
-    if (!has('c2') && f.ilse) add("Carry Ilse's feelings across the pond to Oren");
+    if (!has('c2') && f.ilse) add("Carry Ilse's feelings across the bridge to Oren");
     if (!has('s2') && f.seek) add('Find the lost sword by feel. Warmer means closer.');
     if (!has('p2') && S.q.tobin) add("Match Tobin's juggling rhythm");
     if (has('w2')) add('Showed the Watcher the road east', 1);
@@ -5537,6 +5540,13 @@ function castleWall(x,y){
 function drawTile(x,y,t){
   const c = L().map[y][x], lv = S.level, P = L().pal;
   ctx.save(); ctx.translate(x*ts, y*ts); ctx.scale(ts/32, ts/32);
+  if (lv === 2 && c === '='){
+    water(x, y, t); if (x === 5) circ(16, 16, 4, 'rgba(242,236,216,.5)');
+    rect(-.5, 9, 33, 14, '#7a5a3a'); for (let i=0;i<5;i++) line(i*7 + 2, 9, i*7 + 2, 23, '#5a3e2b', 1.2);
+    line(-.5, 9, 32.5, 9, '#a07a50', 1.6); line(-.5, 23, 32.5, 23, '#5a3e2b', 1.6);
+    for (const px2 of [4, 28]){ rect(px2 - 1.2, 4, 2.4, 6, '#5a3e2b'); } line(-.5, 5, 32.5, 5, '#8a6a45', 1.4);
+    ctx.restore(); return;
+  }
   if (lv === 19 && sunTile(c, x, y, t)){ ctx.restore(); return; }
   if (lv === 20 && judgeTile(c, x, y, t)){ ctx.restore(); return; }
   if (lv === 21 && c === 'T'){ base('#0b1028'); const h = hash(x, y); for (let i=0;i<4;i++){ const tw = (Math.sin(t/(500 + i*170) + h + i)+1)/2; circ(((h >> (i*5)) % 28) + 2, ((h >> (i*5+2)) % 28) + 2, .7 + tw*.9, `rgba(240,240,255,${.3 + tw*.6})`); } ctx.restore(); return; }
@@ -7456,6 +7466,18 @@ function figure(cx, cy, kind, flip, bob, t){
     ctx.restore(); return;
   }
   if (kind==='fawn') return fawnDraw(cx, cy + bob*ts/32, flip, t);
+  if (kind.startsWith('meet2:')){
+    const who = kind.slice(6), k = ts/32, side = who === 'ilse' ? 1 : -1, p = fxProg('meet2');
+    const start = who === 'ilse' ? 3 : 7, end = (who === 'ilse' ? 4 : 6) + side*.62, cur = p === null ? end : start + (end - start)*Math.min(1, p*1.4);
+    const dx = (cur - (who === 'ilse' ? 4 : 6))*ts;
+    figure(cx + dx, cy, who, flip, bob, t);
+    const up = p === null ? 1 : Math.max(0, (p - .7)/.3);
+    if (up > 0){ const hx = cx + dx + side*5*k, hy = cy - (2 + up*12)*k;
+      line(cx + dx + side*3*k, cy, hx, hy + 3*k, who === 'ilse' ? '#c99a72' : '#8a5a3c', 1.8*k);
+      poly([[hx - 2.6*k, hy - 3*k], [hx + 2.6*k, hy - 3*k], [hx + 1.6*k, hy + 1*k], [hx - 1.6*k, hy + 1*k]], '#d9b664'); rect(hx - .5*k, hy + 1*k, 1*k, 2.4*k, '#d9b664'); rect(hx - 1.6*k, hy + 3.2*k, 3.2*k, .9*k, '#d9b664');
+      if (up >= 1 && side === 1) star4(cx + dx + 10*k, cy - 19*k, (2 + Math.sin(t/200)*1)*k, '#fff3c4'); }
+    return;
+  }
   if (kind === 'sadfox'){
     const k = ts/32, done = has('s3'), raining = fxProg('rain3') !== null;
     if (done){ for (const [a,b,c] of [[-9,10,'#e8a6b8'],[0,13,'#f6d77a'],[9,10,'#c99af0']]){ line(cx + a*k, cy + (b + 4)*k, cx + a*k, cy + b*k, '#4f8a3a', 1.2*k); circ(cx + a*k, cy + b*k, 2.4*k, c); circ(cx + a*k, cy + b*k, 1*k, '#fbf7ee'); } }
