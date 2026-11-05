@@ -8265,6 +8265,15 @@ function step(nx, ny, t){
   trail.unshift([S.px, S.py]); if (trail.length > 6) trail.length = 6;
   S.dx = S.px; S.dy = S.py; S.px = nx; S.py = ny;
 }
+// keep the dog on dry land: if it ends up in water or a wall, hop to a free tile beside the Fool
+function fixDog(){
+  if (S.dx === S.px && S.dy === S.py) return;
+  if (S.dx >= 0 && S.dy >= 0 && S.dx < COLS && S.dy < ROWS && !isSolidTile(tile(S.dx, S.dy))) return;
+  const opts = [[-S.face[0], -S.face[1]], [-1,0], [1,0], [0,1], [0,-1]];
+  for (const [ax, ay] of opts){ const nx = S.px + ax, ny = S.py + ay;
+    if (nx >= 0 && ny >= 0 && nx < COLS && ny < ROWS && !isSolidTile(tile(nx, ny)) && !npcAt(nx, ny)){ S.dx = nx; S.dy = ny; return; } }
+  S.dx = S.px; S.dy = S.py;
+}
 function onArrive(){
   save();
   const lv = L();
@@ -8413,6 +8422,7 @@ function tick(t){
   if (L().side){ sideTick(t); sideDraw(t); requestAnimationFrame(tick); return; }
   lastT = t;
   if (mv && t-mv.t0 >= (mv.dur||STEP)){ mv = null; onArrive(); }
+  if (!mv && S.flags.dog) fixDog();
   if (S.level === 12) still12(t);
   if (S.level === 14 && !busy && !mv && tile(S.px,S.py) === '?' && !stoneUp(S.py)) splash14();
   if (S.level === 16) tower16(t);
