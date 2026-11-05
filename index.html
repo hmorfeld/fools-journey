@@ -527,7 +527,7 @@ const LV = [
       {id:'empress', x:5, y:3, kind:'empress', flip:1},
       {id:'fawn', x:2, y:10, kind:'fawn', flip:1},
       {id:'bramble', x:8, y:7, kind:'bramble', flip:1},
-      {id:'owl', x:OWL[S.flags.owlStep||0][0], y:OWL[S.flags.owlStep||0][1], kind:'owl', flip:-1},
+      ...(!has('s3') || !S.flags.party ? [{id:'sadfox', x:9, y:13, kind:'sadfox', flip:-1}] : []),
       ...(S.flags.party ? [
         {id:'doe', x:3, y:10, kind:'doe', flip:-1},
         {id:'rabbit', x:2, y:11, kind:'rabbit', flip:1},
@@ -547,7 +547,7 @@ const LV = [
       if(!has('c3') && q.fawn && !f.water) m.push([1,9]);
       if(!has('p3')) m.push([8,7]);
       if(!has('w3') && (!q.oak || acornCount()===3)) m.push([2,5]);
-      if(!has('s3') && !(f.owlStep>0)) m.push(OWL[0]);
+      if(!has('s3')) m.push([9,13]);
       if(f.thornsOpen) m.push([5,0]); return m; }
   },
   { // Level 4
@@ -5028,9 +5028,34 @@ const SC = {
   async doe(){ await say('', '(The doe stands guard over her fawn, ears twitching happily.)'); },
   async rabbit(){ await say('', '(The rabbit thumps its foot and does a little spin.)'); },
   async fox(){ await say('', '(The fox grins at you and swishes its white-tipped tail.)'); },
+  async sadfox(){
+    const f = S.flags;
+    if (has('s3')){ await say('', '(The fox is curled up among three new flowers, tail over its nose, at peace.)'); return; }
+    await say('', '(A little fox sits alone. A tiny rain cloud is raining on it, and only on it.)');
+    const a = await ask('The fox', 'My best friend was a bird. She flew away, and she isn\'t coming back.', [
+      'Tell it a joke to cheer it up',
+      'Tell it not to be sad',
+      'Sit down beside it, in the rain'
+    ]);
+    if (a !== 2){
+      await fxPlay('ripple', 9, 13, 700, {color:'110,120,140'});
+      await say('', a === 0 ? '(The fox gives you a small, polite smile. The cloud gets darker.)' : '(The cloud rumbles. The fox curls up tighter.)');
+      hint('Some hurts can\'t be fixed. Maybe it just needs company.');
+      return;
+    }
+    const wasStood = f.stood; f.stood = false;
+    await say('', '(You sit down in the wet grass beside it. You don\'t say anything. The rain falls on both of you.)');
+    await fxPlay('rain3', 9, 13, 5000, {px:S.px, py:S.py});
+    await say('', '(The fox leans against you and finally cries. The little cloud rains itself out.)');
+    f.fox3 = true;
+    await Promise.all([fxPlay('rays', 9, 13, 1400, {color:'255,240,200'}), fxPlay('burst', 9, 13, 1100, {color:'232,166,184'})]);
+    await say('', 'Three sharp raindrops fall last of all. Where they land, three flowers open.');
+    await say('The fox', 'Thank you for staying. It still hurts. But I don\'t feel alone with it anymore.');
+    f.stood = wasStood;
+    await reveal('s3');
+  },
   async pool(){
-    if ((S.flags.owlStep||0) === 3 && !has('s3')) return SC.owl();
-    await say('', has('s3') ? 'The pool is still and silver now, full of moonlight.' : 'A perfectly still, black pool. Too dark to see anything in it. Not yet.');
+    await say('', 'A small, still pool. A few rain ripples drift across it.');
   },
 
   // Level 2
@@ -5401,11 +5426,11 @@ function journal(){
     if (!has('c3') && q.fawn) add(f.water && S.inv.moss ? 'Bring the water and moss to the fawn' : `Help the fawn: ${f.water ? 'water found' : 'fill your cup at the stream'}, ${S.inv.moss ? 'moss found' : 'find something soft'}`);
     if (!has('p3') && q.bramble) add('Build a song together with Bramble');
     if (!has('w3') && q.oak) add(`Bring Grandmother Oak her acorns (${acornCount()} of 3)`);
-    if (!has('s3') && f.owlStep > 0) add(f.owlStep === 3 ? 'The owl waits by the still pool' : 'Follow the owl by the sound of its hoot');
+    if (!has('s3') && f.metMaj3) add('Help the little fox under the rain cloud');
+    if (has('s3')) add('Sat with the little fox in the rain', 1);
     if (has('c3')) add('Cared for the fawn, and celebrated with the forest', 1);
     if (has('p3')) add('Built a song nobody had heard before, with Bramble', 1);
     if (has('w3')) add('Planted the acorns and told Grandmother Oak who you are', 1);
-    if (has('s3')) add('Looked into the still pool', 1);
     if (has('3')) add('Earned the Empress', 1);
   } else {
     if (!has('2')) add(`Find the four Twos in the courtyard (${twos()} of 4)`);
@@ -7431,6 +7456,16 @@ function figure(cx, cy, kind, flip, bob, t){
     ctx.restore(); return;
   }
   if (kind==='fawn') return fawnDraw(cx, cy + bob*ts/32, flip, t);
+  if (kind === 'sadfox'){
+    const k = ts/32, done = has('s3'), raining = fxProg('rain3') !== null;
+    if (done){ for (const [a,b,c] of [[-9,10,'#e8a6b8'],[0,13,'#f6d77a'],[9,10,'#c99af0']]){ line(cx + a*k, cy + (b + 4)*k, cx + a*k, cy + b*k, '#4f8a3a', 1.2*k); circ(cx + a*k, cy + b*k, 2.4*k, c); circ(cx + a*k, cy + b*k, 1*k, '#fbf7ee'); } }
+    critterDraw(cx, cy + (done ? 0 : 3*k), 'fox', flip);
+    if (!done && !raining){
+      for (let i=0;i<5;i++){ const q = ((t/600 + i*.21) % 1); line(cx + (-6 + i*3)*k, cy + (-12 + q*18)*k, cx + (-6.6 + i*3)*k, cy + (-10 + q*18)*k, 'rgba(150,180,220,.8)', 1*k); }
+      for (const [a,b,r] of [[-6,-16,5],[0,-18,6],[6,-16,5],[0,-14,6]]) circ(cx + a*k, cy + b*k, r*k, '#8a93a6');
+    }
+    return;
+  }
   if (kind==='doe' || kind==='rabbit' || kind==='fox') return critterDraw(cx, cy + bob*ts/32 - Math.max(0, Math.sin(t/380 + cx))*2*ts/32, kind, flip);
   if (kind==='owl') return owlDraw(cx, cy, t);
   const k = ts/32;
@@ -7708,6 +7743,15 @@ const FXDRAW = {
     ctx.restore();
   },
   ride19(){},
+  rain3(f, p){
+    const fx = (f.x + .5)*ts, fy = (f.y + .5)*ts, ox = ((f.data.px ?? f.x) + .5)*ts, oy = ((f.data.py ?? f.y) + .5)*ts;
+    const cx = (fx + ox)/2, cy = Math.min(fy, oy) - ts*.75, fade = p > .8 ? (1 - p)/.2 : 1, shrink = 1 - p*.5;
+    ctx.save(); ctx.globalAlpha = fade;
+    for (let i=0;i<22;i++){ const q = ((now/500 + i*.137) % 1), x = cx + ((i*.37) % 1 - .5)*ts*1.8*shrink;
+      line(x, cy + q*ts*1.4, x - ts*.02, cy + q*ts*1.4 + ts*.12, 'rgba(150,180,220,.85)', ts*.03); }
+    for (const [a,b,r] of [[-.5,0,.32],[0,-.12,.4],[.5,0,.32],[0,.1,.38]]) circ(cx + a*ts*shrink, cy + b*ts, r*ts*shrink, p > .5 ? '#a4acbc' : '#7a8396');
+    ctx.restore();
+  },
   howl(f, p){
     const cx=(f.x+.5)*ts, cy=(f.y+.5)*ts;
     for (let i=0;i<3;i++){ const q = Math.max(0, p - i*.2); if (!q) continue;
